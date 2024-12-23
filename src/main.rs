@@ -1,41 +1,15 @@
 mod piece;
 mod board;
-mod notation;
+mod parser;
+mod player;
 
 use std::io;
 use std::io::Write;
-use std::fmt;
 
-use piece::piece::{Color, Position, Piece, PieceTypes};
+use piece::piece::Color;
 use board::board::Board;
-use notation::notation_parser::parse_notation;
-
-fn init_pieces(color: Color) -> Vec<Piece> {
-    let mut pieces = Vec::<Piece>::new();
-    let mut y = match color {
-        Color::White => 1,
-        Color::Black => 6
-    };
-            
-    for i in 0..8 {
-        pieces.push(PieceTypes::Pawn.new(color, Position {x: i, y}));
-    }
-            
-    match color {
-        Color::White => y -= 1,
-        Color::Black => y += 1
-    };
-    for i in 0..2 {
-        pieces.push(PieceTypes::Knight.new(color, Position {x: 1+i*5, y}));
-        pieces.push(PieceTypes::Bishop.new(color, Position {x: 2+i*3, y}));
-        pieces.push(PieceTypes::Rook.new(color, Position {x: 0+i*7, y}));
-    }
-           
-    pieces.push(PieceTypes::Queen.new(color, Position {x: 3, y}));
-    pieces.push(PieceTypes::King.new(color, Position {x: 4, y}));
-            
-    pieces
-}
+use parser::notation_parser::parse_notation;
+use player::player::Player;
 
 fn read_input() -> io::Result<String> {
     print!("Enter move: ");
@@ -45,25 +19,42 @@ fn read_input() -> io::Result<String> {
     Ok(buffer)
 }
 
-fn main() -> io::Result<()> {
-    let mut pieces = Vec::<Piece>::new();
-    pieces.append(&mut init_pieces(Color::White));
-    pieces.append(&mut init_pieces(Color::Black));
-    let mut board = Board::new();
-    
-    board.init(&pieces);
-    board.init(&pieces);
-    board.print(&pieces);
-    
-    let mut player = 0;
+fn game_loop(players: &mut Vec<Player>, board: &mut Board) -> io::Result<()> {
+    let mut player_index = 0;
     let mut game_over = false;
-    while(!game_over) {
+    while !game_over {
+        // TODO: update checks
+        board.print(players);
         let buffer = read_input()?;
-        match parse_notation(&buffer) {
-            Ok(parsed) => println!("{:?}", parsed),
-            Err(err) => println!("{}", err.message)
+        let parsed = match parse_notation(&buffer) {
+            Ok(parsed) => parsed,
+            Err(err) => {
+                println!("{}", err);
+                continue;
+            }
         };
+        
+        let player = &players[player_index];
+        if let Err(message) = board.is_valid_move(player, &parsed) {
+            println!("Incorrect move: {message}");
+            continue;
+        }
+
+        player_index = !player_index & 1;
+        board.execute_move(&mut players[player_index], &parsed);
     }
 
+    Ok(())
+}
+
+fn main() -> io::Result<()> {
+    let mut players: Vec<Player> = Vec::new();
+    players.push(Player::new(Color::White));
+    players.push(Player::new(Color::Black));
+
+    let mut board = Board::new();
+    board.init_grid(&players);
+    game_loop(&mut players, &mut board)?;
+    
     Ok(())
 }

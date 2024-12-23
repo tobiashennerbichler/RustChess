@@ -15,7 +15,7 @@ pub mod notation_parser {
     
     #[derive(Debug)]
     pub struct ParsedNotation {
-        pub source_pos: Position,
+        pub src_pos: Position,
         pub dest_pos: Position,
         pub piece_type: PieceTypes
     }
@@ -46,10 +46,10 @@ pub mod notation_parser {
         let offset = if bytes[0] >= b'a' && bytes[0] <= b'h' { 0 } else { 1 };
         match &bytes[offset..] {
             [sx, sy, b':', dx, dy] => {
-                let source_pos = parse_position(*sx, *sy)?;
-                let dest_pos = parse_position(*dx, *dy)?;
+                let src_pos = (*sx, *sy).try_into()?;
+                let dest_pos = (*dx, *dy).try_into()?;
                 Ok(ParsedNotation {
-                    source_pos,
+                    src_pos,
                     dest_pos,
                     piece_type
                 })
@@ -58,18 +58,21 @@ pub mod notation_parser {
         }
     }
     
-    fn parse_position(ux: u8, uy: u8) -> Result<Position, ParseNotationErr> {
-        if ux < b'a' || ux > b'h' {
-            return Err(ParseNotationErr {message: "Invalid x pos"});
+    impl TryInto<Position> for (u8, u8) {
+        type Error = ParseNotationErr;
+
+        fn try_into(self) -> Result<Position, Self::Error> {
+            if self.0 < b'a' || self.0 > b'h' {
+                return Err(Self::Error {message: "Invalid x pos"});
+            }
+
+            if self.1 < b'1' || self.1 > b'8' {
+                return Err(Self::Error {message: "Invalid y pos"});
+            }
+
+            let x = (self.0 - b'a') as usize;
+            let y = (self.1 - b'1') as usize;
+            Ok(Position {x, y})
         }
-    
-        if uy < b'0' || uy > b'9' {
-            return Err(ParseNotationErr {message: "Invalid y pos"});
-        }
-        
-        let x = (ux - b'a') as usize;
-        let y = (uy - b'0') as usize;
-        Ok(Position {x, y})
     }
-    
 }

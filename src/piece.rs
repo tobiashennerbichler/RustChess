@@ -1,8 +1,10 @@
 pub mod piece {
     use crate::board::board::Board;
+    use crate::player::player::Player;
     use std::fmt;
+    use std::ops::AddAssign;
 
-    #[derive(Debug, Copy, Clone)]
+    #[derive(Debug, Copy, Clone, PartialEq)]
     pub enum Color {
         White,
         Black
@@ -17,6 +19,15 @@ pub mod piece {
         }
     }
     
+    impl Into<usize> for Color {
+        fn into(self) -> usize {
+            match self {
+                Color::White => 0,
+                Color::Black => 1
+            }
+        }
+    }
+    
     #[derive(Debug, Copy, Clone)]
     pub struct Position {
         pub x: usize,
@@ -24,84 +35,259 @@ pub mod piece {
     }
 
     impl Position {
-        fn get_distance_between(&self, pos: &Position) -> (i32, i32) {
-            (pos.x as i32 - self.x as i32, pos.y as i32 - self.y as i32)
+        fn get_distance_to(&self, pos: Position) -> Distance {
+            Distance {
+                x: pos.x as i32 - self.x as i32,
+                y: pos.y as i32 - self.y as i32
+            }
+        }
+        
+        fn add_distance(&mut self, distance: Distance) {
+            let x: i32 = self.x.try_into().unwrap();
+            let y: i32 = self.y.try_into().unwrap();
+
+            let (0..7, 0..7) = (x + distance.x, y + distance.y) else {
+                panic!("Should not be possible to go out of bounds - check parser!");
+            };
+            self.x = (self.x as i32 + distance.x) as usize;
+            self.y = (self.y as i32 + distance.y) as usize;
         }
     }
     
+    #[derive(Copy, Clone)]
+    struct Distance {
+        x: i32,
+        y: i32
+    }
+
+    impl AddAssign for Distance {
+        fn add_assign(&mut self, other: Self) {
+            self.x += other.x;
+            self.y += other.y;
+        }
+    }
+
+    impl Distance {
+        fn signum(&self) -> Distance {
+            Distance {x: self.x.signum(), y: self.y.signum()}
+        }
+    }
+    
+    #[derive(Copy, Clone)]
     pub struct Piece {
         color: Color,
         position: Position,
-        character: &'static str,
+        character: char,
         taken: bool,
         piece_type: PieceTypes
     }
+
+    #[derive(Debug, Clone, Copy, PartialEq)]
+    pub enum PieceTypes {
+        Pawn,
+        Knight,
+        Bishop,
+        Rook,
+        Queen,
+        King
+    }
     
+    const CHAR_SET: [char; 12] = [
+        '♟', '♞', '♝', '♜', '♛', '♚',
+        '♙', '♘', '♗', '♖', '♕', '♔'
+    ];
+
     impl Piece {
-        pub fn get_position(&self) -> Position {
-            self.position
-        }
-        
-        pub fn get_piece_type(&self) -> PieceTypes {
-            self.piece_type
-        }
-        
-        pub fn get_color(&self) -> Color {
-            self.color
-        }
-        
-        pub fn is_legal_move(&self, new_pos: &Position, board: &Board) -> bool {
-            match self.piece_type {
-                PieceTypes::Pawn => self.is_legal_move_pawn(new_pos, board),
-                PieceTypes::Knight => self.is_legal_move_knight(new_pos, board),
-                PieceTypes::Bishop => self.is_legal_move_bishop(new_pos, board),
-                PieceTypes::Rook => self.is_legal_move_rook(new_pos, board),
-                PieceTypes::Queen => self.is_legal_move_queen(new_pos, board),
-                PieceTypes::King => self.is_legal_move_king(new_pos, board)
+        pub fn new(piece_type: PieceTypes, color: Color, position: Position) -> Self {
+            let taken = false;
+            let offset = match color {
+                Color::White => 0,
+                Color::Black => 6
+            };
+
+            match piece_type {
+                PieceTypes::Pawn => Piece {color, position, character: CHAR_SET[offset], taken, piece_type},
+                PieceTypes::Knight => Piece {color, position, character: CHAR_SET[offset + 1], taken, piece_type},
+                PieceTypes::Bishop => Piece {color, position, character: CHAR_SET[offset + 2], taken, piece_type},
+                PieceTypes::Rook => Piece {color, position, character: CHAR_SET[offset + 3], taken, piece_type},
+                PieceTypes::Queen => Piece {color, position, character: CHAR_SET[offset + 4], taken, piece_type},
+                PieceTypes::King => Piece {color, position, character: CHAR_SET[offset + 5], taken, piece_type}
             }
         }
 
-        fn is_legal_move_pawn(&self, new_pos: &Position, board: &Board) -> bool {
-            let (dist_x, mut dist_y) = self.position.get_distance_between(new_pos);
+        pub fn is_taken(&self) -> bool {
+            self.taken
+        }
+
+        pub fn take(&mut self) {
+            self.taken = true;
+        }
+        
+        // TODO: check if player in check, otherwise restrict to king moves
+        // TODO: check for possible exposed checks after move --> test move and run update_check
+        // method
+        // TODO: maybe is_legal_move does not check for exposed checks, instead do it afterwards
+        // and use is_legal_move functions to check all pieces for new_pos = king.pos
+        pub fn is_legal_move(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
+            match self.piece_type {
+                PieceTypes::Pawn => self.is_legal_move_pawn(player, new_pos, board),
+                PieceTypes::Knight => self.is_legal_move_knight(player, new_pos, board),
+                PieceTypes::Bishop => self.is_legal_move_bishop(player, new_pos, board),
+                PieceTypes::Rook => self.is_legal_move_rook(player, new_pos, board),
+                PieceTypes::Queen => self.is_legal_move_queen(player, new_pos, board),
+                PieceTypes::King => self.is_legal_move_king(player, new_pos, board)
+            }
+        }
+
+        fn is_legal_move_pawn(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
+            let mut distance = self.position.get_distance_to(new_pos);
             let mut start_pos = 1;
             if let Color::Black = self.color {
-                dist_y *= -1;
+                distance.y *= -1;
                 start_pos = 6;
             }
 
-            if dist_y == 2 && dist_x == 0 {
-                if self.position.y != start_pos {
-                    return false;
+            match distance {
+                // Advance
+                Distance {x: 0, y: 1 | 2} => {
+                    if distance.y == 2 && self.position.y != start_pos {
+                        return Err("Pawn cannot move twice if it has moved before");
+                    }
+                    
+                    match board.get_board_entry(new_pos) {
+                        Some(_) => Err("Pawn cannot move to populated field"),
+                        None => Ok(())
+                    }
+                },
+                // Take
+                Distance {x: 1 | -1, y: 1} => self.check_takeable(board, player.get_color(), new_pos),
+                _ => Err("Invalid Pawn move")
+            }
+        }
+            
+        fn is_legal_move_knight(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
+            let distance = self.position.get_distance_to(new_pos);
+
+            match distance {
+                Distance {x: 1 | -1, y: 2 | -2} |
+                Distance {x: 2 | -2, y: 1 | -1} => {
+                    self.check_takeable(board, player.get_color(), new_pos)
+                },
+                _ => Err("Invalid Knight move")
+            }
+        }
+
+        fn is_legal_move_bishop(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
+            let distance = self.position.get_distance_to(new_pos);
+
+            match distance {
+                Distance {x: 0, y: 0} => {
+                    return Err("Invalid Bishop move");
                 }
+                Distance {x, y} if x == y || x == -y => {
+                    if self.is_path_obstructed(board, x.abs() - 1, distance.signum()) {
+                        return Err("Piece in the way");
+                    }
+                 
+                    self.check_takeable(board, player.get_color(), new_pos)
+                },
+                _ => Err("Invalid Bishop move")
+            }
+        }
 
-                //if let None = board
-            } else if dist_y == 1 && dist_x.abs() == 1 {
+        fn is_legal_move_rook(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
+            let distance = self.position.get_distance_to(new_pos);
 
-            } else if dist_y == 1 && dist_x == 0 {
+            match distance {
+                Distance {x, y: 0} if x != 0 => {
+                    if self.is_path_obstructed(board, x.abs() - 1, Distance {x: x.signum(), y: 0}) {
+                        return Err("Piece in the way");
+                    }
 
+                    self.check_takeable(board, player.get_color(), new_pos)
+                },
+                Distance {x: 0, y} if y != 0 => {
+                    if self.is_path_obstructed(board, y.abs() - 1, Distance {x: 0, y: y.signum()}) {
+                        return Err("Piece in the way");
+                    }
+
+                    self.check_takeable(board, player.get_color(), new_pos)
+                },
+                _ => Err("Invalid Rook move")
+            }
+        }
+
+        fn is_legal_move_queen(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
+            let distance = self.position.get_distance_to(new_pos);
+
+            match distance {
+                Distance {x: 0, y: 0} => Err("Invalid Queen move"),
+                Distance {x, y: 0} => {
+                    if self.is_path_obstructed(board, x.abs() - 1, Distance {x: x.signum(), y: 0}) {
+                        return Err("Piece in the way");
+                    }
+
+                    self.check_takeable(board, player.get_color(), new_pos)
+                },
+                Distance {x: 0, y} => {
+                    if self.is_path_obstructed(board, y.abs() - 1, Distance {x: 0, y: y.signum()}) {
+                        return Err("Piece in the way");
+                    }
+
+                    self.check_takeable(board, player.get_color(), new_pos)
+                },
+                Distance {x, y} if x == y || x == -y => {
+                    if self.is_path_obstructed(board, x.abs() - 1, distance.signum()) {
+                        return Err("Piece in the way");
+                    }
+
+                    self.check_takeable(board, player.get_color(), new_pos)
+                },
+                _ => Err("Invalid Queen move")
+            }
+        }
+
+        fn is_legal_move_king(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
+            let distance = self.position.get_distance_to(new_pos);
+
+            match distance {
+                Distance {x: 0, y: 0} => Err("Invalid King move"),
+                Distance {x, y} if x <= 1 && y <= 1 => {
+                    self.check_takeable(board, player.get_color(), new_pos)
+                }
+                _ => Err("Invalid King move")
+            }
+        }
+
+        fn is_path_obstructed(&self, board: &Board, num_fields: i32, add: Distance) -> bool {
+            let mut temp_pos = self.position;
+            let mut temp_dist = add;
+            for _ in 0..num_fields {
+                temp_pos.add_distance(temp_dist);
+
+                if let Some(_) = board.get_board_entry(temp_pos) {
+                    return true;
+                }
+                temp_dist += add;
             }
 
             false
         }
+
+        fn check_takeable(&self, board: &Board, player_color: Color, new_pos: Position) -> Result<(), &'static str> {
+            match board.get_board_entry(new_pos) {
+                Some(entry) if entry.player_color == player_color => Err("Cannot take own piece"),
+                Some(_) => Ok(()),
+                None => Ok(())
+            }
+        }
         
-        fn is_legal_move_knight(&self, new_pos: &Position, board: &Board) -> bool {
-            false
+        pub fn get_position(&self) -> Position {
+            self.position
         }
 
-        fn is_legal_move_bishop(&self, new_pos: &Position, board: &Board) -> bool {
-            false
-        }
-
-        fn is_legal_move_rook(&self, new_pos: &Position, board: &Board) -> bool {
-            false
-        }
-
-        fn is_legal_move_queen(&self, new_pos: &Position, board: &Board) -> bool {
-            false
-        }
-
-        fn is_legal_move_king(&self, new_pos: &Position, board: &Board) -> bool {
-            false
+        pub fn get_piece_type(&self) -> PieceTypes {
+            self.piece_type
         }
     }
     
@@ -116,38 +302,5 @@ pub mod piece {
             write!(f, "{} @ {}/{}", self.character, self.position.x, self.position.y)
         }
     }
-    
-    const CHAR_SET: [&str; 12] = [
-        "♟", "♞", "♝", "♜", "♛", "♚",
-        "♙", "♘", "♗", "♖", "♕", "♔"
-    ];
 
-    #[derive(Debug, Clone, Copy)]
-    pub enum PieceTypes {
-        Pawn,
-        Knight,
-        Bishop,
-        Rook,
-        Queen,
-        King
-    }
-    
-    impl PieceTypes {
-        pub fn new(&self, color: Color, position: Position) -> Piece {
-            let offset = match color {
-                Color::White => 0,
-                Color::Black => 6
-            };
-            let taken = false;
-
-            match self {
-                PieceTypes::Pawn => Piece {color, position, character: CHAR_SET[offset], taken, piece_type: PieceTypes::Pawn},
-                PieceTypes::Knight => Piece {color, position, character: CHAR_SET[1 + offset], taken, piece_type: PieceTypes::Knight},
-                PieceTypes::Bishop => Piece {color, position, character: CHAR_SET[2 + offset], taken, piece_type: PieceTypes::Bishop},
-                PieceTypes::Rook => Piece {color, position, character: CHAR_SET[3 + offset], taken, piece_type: PieceTypes::Rook},
-                PieceTypes::Queen => Piece {color, position, character: CHAR_SET[4 + offset], taken, piece_type: PieceTypes::Queen},
-                PieceTypes::King => Piece {color, position, character: CHAR_SET[5 + offset], taken, piece_type: PieceTypes::King}
-            }
-        }
-    }
 }
