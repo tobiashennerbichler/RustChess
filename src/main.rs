@@ -19,13 +19,17 @@ fn read_input() -> io::Result<String> {
     Ok(buffer)
 }
 
-fn game_loop(players: &mut Vec<Player>, board: &mut Board) -> io::Result<()> {
+fn game_loop(players: &mut Vec<Player>, board: &mut Board) {
     let mut player_index = 0;
-    let mut game_over = false;
+    let game_over = false;
     while !game_over {
         // TODO: update checks
         board.print(players);
-        let buffer = read_input()?;
+        let Ok(buffer) = read_input() else {
+            println!("Error with reading - try again");
+            continue;
+        };
+
         let action = match parse_action(&buffer) {
             Ok(action) => action,
             Err(err) => {
@@ -48,23 +52,19 @@ fn game_loop(players: &mut Vec<Player>, board: &mut Board) -> io::Result<()> {
 
                 board.execute_move(players, player_index, &parsed);
             },
-            Action::Quit => return Ok(())
+            Action::Quit => return ()
         }
         
         player_index = (player_index + 1) % 2;
     }
-
-    Ok(())
 }
 
-fn main() -> io::Result<()> {
+fn main() {
     let mut players: Vec<Player> = Vec::new();
     players.push(Player::new(Color::White));
     players.push(Player::new(Color::Black));
 
     let mut board = Board::new();
     board.init_grid(&players);
-    game_loop(&mut players, &mut board)?;
-    
-    Ok(())
+    game_loop(&mut players, &mut board);
 }
