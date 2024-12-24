@@ -54,7 +54,7 @@ pub mod piece {
         }
     }
     
-    #[derive(Copy, Clone)]
+    #[derive(Debug, Copy, Clone)]
     struct Distance {
         x: i32,
         y: i32
@@ -121,6 +121,11 @@ pub mod piece {
 
         pub fn take(&mut self) {
             self.taken = true;
+            self.position = Position {x: 0, y: 0};
+        }
+
+        pub fn update_position(&mut self, new_pos: Position) {
+            self.position = new_pos;
         }
         
         // TODO: check if player in check, otherwise restrict to king moves
@@ -128,6 +133,8 @@ pub mod piece {
         // method
         // TODO: maybe is_legal_move does not check for exposed checks, instead do it afterwards
         // and use is_legal_move functions to check all pieces for new_pos = king.pos
+        // TODO: handle en passant, castling and promotion
+        // TODO: implement checkmate and stalemate
         pub fn is_legal_move(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
             match self.piece_type {
                 PieceTypes::Pawn => self.is_legal_move_pawn(player, new_pos, board),
@@ -146,10 +153,12 @@ pub mod piece {
                 distance.y *= -1;
                 start_pos = 6;
             }
+            
+            println!("{:?} - {:?} = {distance:?}", new_pos, self.position);
 
             match distance {
                 // Advance
-                Distance {x: 0, y: 1 | 2} => {
+                Distance {x: 0, y: 1..=2} => {
                     if distance.y == 2 && self.position.y != start_pos {
                         return Err("Pawn cannot move twice if it has moved before");
                     }
@@ -160,7 +169,13 @@ pub mod piece {
                     }
                 },
                 // Take
-                Distance {x: 1 | -1, y: 1} => self.check_takeable(board, player.get_color(), new_pos),
+                Distance {x, y: 1} if x.abs() == 1 => {
+                    match board.get_board_entry(new_pos) {
+                        Some(entry) if entry.player_color == player.get_color() => Err("Cannot take own piece"),
+                        Some(_) => Ok(()),
+                        None => Err("Nothing to take")
+                    }
+                },
                 _ => Err("Invalid Pawn move")
             }
         }
@@ -169,8 +184,14 @@ pub mod piece {
             let distance = self.position.get_distance_to(new_pos);
 
             match distance {
-                Distance {x: 1 | -1, y: 2 | -2} |
-                Distance {x: 2 | -2, y: 1 | -1} => {
+                Distance {x: 1, y: 2} |
+                Distance {x: 1, y: -2} |
+                Distance {x: -1, y: 2} |
+                Distance {x: -1, y: -2} |
+                Distance {x: 2, y: 1} |
+                Distance {x: 2, y: -1} |
+                Distance {x: -2, y: 1} |
+                Distance {x: -2, y: -1} => {
                     self.check_takeable(board, player.get_color(), new_pos)
                 },
                 _ => Err("Invalid Knight move")

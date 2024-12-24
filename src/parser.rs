@@ -13,6 +13,11 @@ pub mod notation_parser {
         }
     }
     
+    enum Action {
+        List,
+        
+    }
+    
     #[derive(Debug)]
     pub struct ParsedNotation {
         pub src_pos: Position,

@@ -40,8 +40,8 @@ fn game_loop(players: &mut Vec<Player>, board: &mut Board) -> io::Result<()> {
             continue;
         }
 
-        player_index = !player_index & 1;
-        board.execute_move(&mut players[player_index], &parsed);
+        board.execute_move(players, player_index, &parsed);
+        player_index = (player_index + 1) % 2;
     }
 
     Ok(())

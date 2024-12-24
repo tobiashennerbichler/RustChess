@@ -53,6 +53,14 @@ pub mod player {
             self.pieces[piece_index].take();
         }
 
+        pub fn update_piece_position(&mut self, piece_index: usize, new_pos: Position) {
+            self.pieces[piece_index].update_position(new_pos);
+        }
+        
+        pub fn update_checks(&mut self, enemy: &Player, board: &Board) {
+
+        }
+
         pub fn get_color(&self) -> Color {
             self.color
         }

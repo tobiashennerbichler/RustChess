@@ -66,12 +66,14 @@ pub mod board {
             piece.is_legal_move(player, parsed.dest_pos, self)
         }
 
-        pub fn execute_move(&mut self, player: &mut Player, parsed: &ParsedNotation) {
-            let src_entry = self.get_board_entry(parsed.src_pos).unwrap();
+        pub fn execute_move(&mut self, players: &mut Vec<Player>, player_index: usize, parsed: &ParsedNotation) {
+            let enemy_index = (player_index + 1) % 2;
             if let Some(dest_entry) = self.get_board_entry(parsed.dest_pos) {
-                player.take_piece(dest_entry.piece_index);
+                players[enemy_index].take_piece(dest_entry.piece_index);
             }
             
+            let src_entry = self.get_board_entry(parsed.src_pos).expect("Src field should contain piece, check is_legal functions");
+            players[player_index].update_piece_position(src_entry.piece_index, parsed.dest_pos);
             self.grid[parsed.src_pos.x][parsed.src_pos.y] = None;
             self.grid[parsed.dest_pos.x][parsed.dest_pos.y] = Some(src_entry);
         }
