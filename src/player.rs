@@ -1,6 +1,5 @@
 pub mod player {
     use crate::piece::piece::{Piece, PieceTypes, Position, Color};
-    use crate::parser::notation_parser::ParsedNotation;
     use crate::board::board::Board;
     
     pub struct Player {
@@ -55,6 +54,12 @@ pub mod player {
 
         pub fn update_piece_position(&mut self, piece_index: usize, new_pos: Position) {
             self.pieces[piece_index].update_position(new_pos);
+        }
+
+        pub fn list_pieces(&self) {
+            for &piece in self.pieces.iter() {
+                println!("{piece:?}");
+            }
         }
         
         pub fn update_checks(&mut self, enemy: &Player, board: &Board) {

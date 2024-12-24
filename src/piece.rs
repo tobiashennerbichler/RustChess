@@ -46,7 +46,7 @@ pub mod piece {
             let x: i32 = self.x.try_into().unwrap();
             let y: i32 = self.y.try_into().unwrap();
 
-            let (0..7, 0..7) = (x + distance.x, y + distance.y) else {
+            let (0..=7, 0..=7) = (x + distance.x, y + distance.y) else {
                 panic!("Should not be possible to go out of bounds - check parser!");
             };
             self.x = (self.x as i32 + distance.x) as usize;
@@ -154,8 +154,6 @@ pub mod piece {
                 start_pos = 6;
             }
             
-            println!("{:?} - {:?} = {distance:?}", new_pos, self.position);
-
             match distance {
                 // Advance
                 Distance {x: 0, y: 1..=2} => {
@@ -184,14 +182,8 @@ pub mod piece {
             let distance = self.position.get_distance_to(new_pos);
 
             match distance {
-                Distance {x: 1, y: 2} |
-                Distance {x: 1, y: -2} |
-                Distance {x: -1, y: 2} |
-                Distance {x: -1, y: -2} |
-                Distance {x: 2, y: 1} |
-                Distance {x: 2, y: -1} |
-                Distance {x: -2, y: 1} |
-                Distance {x: -2, y: -1} => {
+                Distance {x, y} if (x.abs() == 1 && y.abs() == 2) ||
+                                             (x.abs() == 2 && y.abs() == 1) => {
                     self.check_takeable(board, player.get_color(), new_pos)
                 },
                 _ => Err("Invalid Knight move")
@@ -282,14 +274,12 @@ pub mod piece {
 
         fn is_path_obstructed(&self, board: &Board, num_fields: i32, add: Distance) -> bool {
             let mut temp_pos = self.position;
-            let mut temp_dist = add;
             for _ in 0..num_fields {
-                temp_pos.add_distance(temp_dist);
+                temp_pos.add_distance(add);
 
                 if let Some(_) = board.get_board_entry(temp_pos) {
                     return true;
                 }
-                temp_dist += add;
             }
 
             false
@@ -320,7 +310,10 @@ pub mod piece {
     
     impl fmt::Debug for Piece {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            write!(f, "{} @ {}/{}", self.character, self.position.x, self.position.y)
+            match self.taken {
+                true => write!(f, "{} already taken", self.character),
+                false => write!(f, "{} @ {}/{}", self.character, self.position.x, self.position.y)
+            }
         }
     }
 

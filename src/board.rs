@@ -30,7 +30,7 @@ pub mod board {
         pub fn print(&self, players: &Vec<Player>) {
             for y in (0..8usize).rev() {
                 print!("{} ", y + 1);
-                for x in (0..8usize) {
+                for x in 0..8usize {
                     match self.grid[x][y] {
                         Some(entry) => {
                             let player_index = entry.player_color as usize;
