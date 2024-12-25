@@ -76,9 +76,9 @@ pub mod board {
             }
                     
             match matches {
-                0 => Err("No match for given piece type"),
+                0 => Err("Cannot find matching piece to move to destination"),
                 1 => Ok(ParsedNotation::Full(from, to, piece_type)),
-                2.. => Err("Multiple possible moves, use full notation [src:dest]")
+                2.. => Err("Multiple possible moves - use full notation: [src:dest]")
             }
         }
 
@@ -99,16 +99,15 @@ pub mod board {
             piece.is_possible_move(player, to, self)
         }
         
-        pub fn execute_or_reset(&mut self, player: &mut Player, enemy: &mut Player, from: Position, to: Position) -> Result<(), &'static str> {
+        pub fn execute_or_revert(&mut self, player: &mut Player, enemy: &mut Player, from: Position, to: Position) -> Result<(), &'static str> {
             let already_check = player.is_in_check();
 
             // Save board state
             let src_entry = self.get_board_entry(from).expect("Must contain piece");
             let opt_dest_entry = self.get_board_entry(to);
-            self.execute_move(player, enemy, from, to);
 
-            // If move caused check or did not stop it, reset move
-            if player.does_piece_give_check(enemy, self) {
+            self.execute_move(player, enemy, from, to);
+            if player.gets_checked_by(enemy, self) {
                 if let Some(dest_entry) = opt_dest_entry {
                     enemy.untake_piece(dest_entry.piece_index, to);
                 }

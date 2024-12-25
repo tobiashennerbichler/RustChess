@@ -67,7 +67,7 @@ fn game_loop(players: &mut Vec<Player>, board: &mut Board) {
                     panic!("Must be a full notation by now");
                 };
 
-                if let Err(message) = board.execute_or_reset(player, enemy, from, to) {
+                if let Err(message) = board.execute_or_revert(player, enemy, from, to) {
                     println!("{message}");
                     continue;
                 }

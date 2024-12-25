@@ -74,7 +74,7 @@ pub mod player {
             }
         }
         
-        pub fn does_piece_give_check(&self, enemy: &Player, board: &Board) -> bool {
+        pub fn gets_checked_by(&self, enemy: &Player, board: &Board) -> bool {
             let king: &Piece = self.pieces.iter().filter(|&&p| p.get_piece_type() == PieceTypes::King)
                                                  .collect::<Vec<&Piece>>()[0];
             
@@ -92,7 +92,7 @@ pub mod player {
         }
 
         pub fn update_check(&mut self, enemy: &Player, board: &Board) {
-            self.in_check = self.does_piece_give_check(enemy, board);
+            self.in_check = self.gets_checked_by(enemy, board);
         }
 
         pub fn get_color(&self) -> Color {
