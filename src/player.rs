@@ -40,8 +40,12 @@ pub mod player {
             Player { pieces, color, in_check: false }
         }
         
-        pub fn get_piece(&self, piece_index: usize) -> &Piece {
-            &self.pieces[piece_index]
+        pub fn get_pieces(&self) -> &Vec<Piece> {
+            &self.pieces
+        }
+
+        pub fn get_piece(&self, index: usize) -> &Piece {
+            &self.pieces[index]
         }
 
         pub fn take_piece(&mut self, piece_index: usize) {

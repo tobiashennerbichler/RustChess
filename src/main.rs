@@ -8,7 +8,7 @@ use std::io::Write;
 
 use piece::piece::Color;
 use board::board::Board;
-use parser::notation_parser::{parse_action, Action};
+use parser::notation_parser::{parse_action, Action, ParsedNotation};
 use player::player::Player;
 
 fn read_input() -> io::Result<String> {
@@ -43,14 +43,17 @@ fn game_loop(players: &mut Vec<Player>, board: &mut Board) {
                 players[player_index].list_pieces();
                 continue;
             }
-            Action::Move(parsed) => {
+            Action::Move(mut notation) => {
                 let player = &players[player_index];
-                if let Err(message) = board.is_valid_move(player, &parsed) {
+                if let Err(message) = board.is_valid_move(player, &mut notation) {
                     println!("Incorrect move: {message}");
                     continue;
                 }
 
-                board.execute_move(players, player_index, &parsed);
+                let ParsedNotation::FullNotation(from, to, _) = notation else {
+                    panic!("Should be a FullNotation by now");
+                };
+                board.execute_move(players, player_index, from, to);
             },
             Action::Quit => return ()
         }
