@@ -3,9 +3,9 @@ pub mod player {
     use crate::board::board::Board;
     
     pub struct Player {
-        pub pieces: Vec<Piece>,
-        pub color: Color,
-        pub in_check: bool
+        pieces: Vec<Piece>,
+        color: Color,
+        in_check: bool
     }
 
     fn init_pieces(color: Color) -> Vec<Piece> {
@@ -56,6 +56,14 @@ pub mod player {
             self.pieces[piece_index].take();
         }
 
+        pub fn untake_piece(&mut self, piece_index: usize, pos: Position) {
+            if !self.pieces[piece_index].is_taken() {
+                panic!("Piece should be taken");
+            }
+
+            self.pieces[piece_index].untake(pos);
+        }
+
         pub fn update_piece_position(&mut self, piece_index: usize, new_pos: Position) {
             self.pieces[piece_index].update_position(new_pos);
         }
@@ -66,12 +74,33 @@ pub mod player {
             }
         }
         
-        pub fn update_checks(&mut self, enemy: &Player, board: &Board) {
+        pub fn does_piece_give_check(&self, enemy: &Player, board: &Board) -> bool {
+            let king: &Piece = self.pieces.iter().filter(|&&p| p.get_piece_type() == PieceTypes::King)
+                                                 .collect::<Vec<&Piece>>()[0];
+            
+            for piece in enemy.get_pieces() {
+                if piece.is_taken() {
+                    continue;
+                }
 
+                if let Ok(_) = piece.is_possible_move(enemy, king.get_position(), board) {
+                    println!("This {piece:?} piece gives check to {king:?}");
+                    return true;
+                }
+            }
+            false
+        }
+
+        pub fn update_check(&mut self, enemy: &Player, board: &Board) {
+            self.in_check = self.does_piece_give_check(enemy, board);
         }
 
         pub fn get_color(&self) -> Color {
             self.color
+        }
+
+        pub fn is_in_check(&self) -> bool {
+            self.in_check
         }
     }
 

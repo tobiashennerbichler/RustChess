@@ -19,12 +19,26 @@ fn read_input() -> io::Result<String> {
     Ok(buffer)
 }
 
+fn get_mut_player_enemy(players: &mut Vec<Player>, player_index: usize) -> (&mut Player, &mut Player) {
+    let (left, right) = players.split_at_mut(1);
+    match player_index {
+        0 => (&mut left[0], &mut right[0]),
+        1 => (&mut right[0], &mut left[0]),
+        _ => panic!("Invalid index")
+    }
+}
+
 fn game_loop(players: &mut Vec<Player>, board: &mut Board) {
     let mut player_index = 0;
     let game_over = false;
+
     while !game_over {
-        // TODO: update checks
         board.print(players);
+
+        let (player, enemy) = get_mut_player_enemy(players, player_index);
+        player.update_check(enemy, board);
+        println!("current player in check: {}", player.is_in_check());
+
         let Ok(buffer) = read_input() else {
             println!("Error with reading - try again");
             continue;
@@ -37,23 +51,26 @@ fn game_loop(players: &mut Vec<Player>, board: &mut Board) {
                 continue;
             }
         };
-        
+
         match action {
             Action::List => {
-                players[player_index].list_pieces();
+                player.list_pieces();
                 continue;
             }
             Action::Move(mut notation) => {
-                let player = &players[player_index];
-                if let Err(message) = board.is_valid_move(player, &mut notation) {
-                    println!("Incorrect move: {message}");
+                if let Err(message) = board.validate_move(player, &mut notation) {
+                    println!("Invalid move: {message}");
                     continue;
                 }
-
-                let ParsedNotation::FullNotation(from, to, _) = notation else {
-                    panic!("Should be a FullNotation by now");
+                
+                let ParsedNotation::Full(from, to, _) = notation else {
+                    panic!("Must be a full notation by now");
                 };
-                board.execute_move(players, player_index, from, to);
+
+                if let Err(message) = board.execute_or_reset(player, enemy, from, to) {
+                    println!("{message}");
+                    continue;
+                }
             },
             Action::Quit => return ()
         }

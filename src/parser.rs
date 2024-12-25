@@ -21,8 +21,8 @@ pub mod notation_parser {
     
     #[derive(Debug)]
     pub enum ParsedNotation {
-        ShortNotation(Position, PieceTypes),
-        FullNotation(Position, Position, PieceTypes)
+        Short(Position, PieceTypes),
+        Full(Position, Position, PieceTypes)
     }
     
     pub fn parse_action(s: &str) -> Result<Action, ParsingErr> {
@@ -58,12 +58,12 @@ pub mod notation_parser {
         match &bytes[offset..] {
             [dx, dy] => {
                 let to = parse_notation(*dx, *dy)?;
-                Ok(Action::Move(ParsedNotation::ShortNotation(to, piece_type)))
+                Ok(Action::Move(ParsedNotation::Short(to, piece_type)))
             },
             [sx, sy, b':', dx, dy] => {
                 let from= parse_notation(*sx, *sy)?;
                 let to= parse_notation(*dx, *dy)?;
-                Ok(Action::Move(ParsedNotation::FullNotation(from, to, piece_type)))
+                Ok(Action::Move(ParsedNotation::Full(from, to, piece_type)))
             },
             _ => Err(ParsingErr {message: "String not in format [source:dest]"})
         }

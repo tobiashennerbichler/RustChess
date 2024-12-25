@@ -124,29 +124,34 @@ pub mod piece {
             self.position = Position {x: 0, y: 0};
         }
 
+        pub fn untake(&mut self, pos: Position) {
+            self.taken = false;
+            self.position = pos;
+        }
+
         pub fn update_position(&mut self, new_pos: Position) {
             self.position = new_pos;
         }
         
-        // TODO: check if player in check, otherwise restrict to king moves
+        // TODO: if in check, check if this move removes check
         // TODO: check for possible exposed checks after move --> test move and run update_check
         // method
         // TODO: maybe is_legal_move does not check for exposed checks, instead do it afterwards
         // and use is_legal_move functions to check all pieces for new_pos = king.pos
         // TODO: handle en passant, castling and promotion
         // TODO: implement checkmate and stalemate
-        pub fn is_legal_move(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
+        pub fn is_possible_move(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
             match self.piece_type {
-                PieceTypes::Pawn => self.is_legal_move_pawn(player, new_pos, board),
-                PieceTypes::Knight => self.is_legal_move_knight(player, new_pos, board),
-                PieceTypes::Bishop => self.is_legal_move_bishop(player, new_pos, board),
-                PieceTypes::Rook => self.is_legal_move_rook(player, new_pos, board),
-                PieceTypes::Queen => self.is_legal_move_queen(player, new_pos, board),
-                PieceTypes::King => self.is_legal_move_king(player, new_pos, board)
+                PieceTypes::Pawn => self.is_possible_move_pawn(player, new_pos, board),
+                PieceTypes::Knight => self.is_possible_move_knight(player, new_pos, board),
+                PieceTypes::Bishop => self.is_possible_move_bishop(player, new_pos, board),
+                PieceTypes::Rook => self.is_possible_move_rook(player, new_pos, board),
+                PieceTypes::Queen => self.is_possible_move_queen(player, new_pos, board),
+                PieceTypes::King => self.is_possible_move_king(player, new_pos, board)
             }
         }
 
-        fn is_legal_move_pawn(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
+        fn is_possible_move_pawn(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
             let mut distance = self.position.get_distance_to(new_pos);
             let mut start_pos = 1;
             if let Color::Black = self.color {
@@ -178,7 +183,7 @@ pub mod piece {
             }
         }
             
-        fn is_legal_move_knight(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
+        fn is_possible_move_knight(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
             let distance = self.position.get_distance_to(new_pos);
 
             match distance {
@@ -190,7 +195,7 @@ pub mod piece {
             }
         }
 
-        fn is_legal_move_bishop(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
+        fn is_possible_move_bishop(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
             let distance = self.position.get_distance_to(new_pos);
 
             match distance {
@@ -208,7 +213,7 @@ pub mod piece {
             }
         }
 
-        fn is_legal_move_rook(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
+        fn is_possible_move_rook(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
             let distance = self.position.get_distance_to(new_pos);
 
             match distance {
@@ -230,7 +235,7 @@ pub mod piece {
             }
         }
 
-        fn is_legal_move_queen(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
+        fn is_possible_move_queen(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
             let distance = self.position.get_distance_to(new_pos);
 
             match distance {
@@ -260,14 +265,14 @@ pub mod piece {
             }
         }
 
-        fn is_legal_move_king(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
+        fn is_possible_move_king(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
             let distance = self.position.get_distance_to(new_pos);
 
             match distance {
                 Distance {x: 0, y: 0} => Err("Invalid King move"),
-                Distance {x, y} if x <= 1 && y <= 1 => {
+                Distance {x, y} if x.abs() <= 1 && y.abs() <= 1 => {
                     self.check_takeable(board, player.get_color(), new_pos)
-                }
+                },
                 _ => Err("Invalid King move")
             }
         }
@@ -311,7 +316,7 @@ pub mod piece {
     impl fmt::Debug for Piece {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             match self.taken {
-                true => write!(f, "{} already taken", self.character),
+                true => Ok(()),
                 false => write!(f, "{} @ {}/{}", self.character, self.position.x, self.position.y)
             }
         }
