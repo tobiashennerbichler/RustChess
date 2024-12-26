@@ -133,11 +133,6 @@ pub mod piece {
             self.position = new_pos;
         }
         
-        // TODO: if in check, check if this move removes check
-        // TODO: check for possible exposed checks after move --> test move and run update_check
-        // method
-        // TODO: maybe is_legal_move does not check for exposed checks, instead do it afterwards
-        // and use is_legal_move functions to check all pieces for new_pos = king.pos
         // TODO: handle en passant, castling and promotion
         // TODO: implement checkmate and stalemate
         pub fn is_field_reachable(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {

@@ -51,19 +51,43 @@ pub mod board {
             println!("");
         }
         
-        pub fn validate_move(&mut self, player: &Player, notation: &mut ParsedNotation) -> BoardResult<()> {
-            match *notation {
+        pub fn validate_and_execute_move(&mut self, player: &mut Player, enemy: &mut Player, notation: ParsedNotation) -> BoardResult<()> {
+            let (from, to) = match notation {
                 ParsedNotation::Short(to, piece_type) => {
-                    *notation = self.check_and_convert_short(player, to, piece_type)?;
-                    Ok(())
+                    let from = self.validate_and_convert_short_notation(player, to, piece_type)?;
+                    (from, to)
                 },
                 ParsedNotation::Full(from, to, piece_type) => {
-                    self.check_full(player, from, to, piece_type)
+                    self.validate_full_notation(player, from, to, piece_type)?;
+                    (from, to)
                 }
-            }
+            };
+            
+            self.is_legal_move(player, enemy, from, to)?;
+            self.execute_move(player, enemy, from, to);
+            Ok(())
         }
 
-        pub fn check_and_convert_short(&self, player: &Player, to: Position, piece_type: PieceTypes) -> BoardResult<ParsedNotation> {
+        fn is_legal_move(&mut self, player: &mut Player, enemy: &mut Player, from: Position, to: Position) -> BoardResult<()> {
+            let already_in_check = player.is_in_check();
+
+            let src_entry = self.get_board_entry(from).expect("Must contain piece");
+            let opt_dest_entry = self.get_board_entry(to);
+            
+            self.execute_move(player, enemy, from, to);
+            let now_in_check = player.gets_checked_by(enemy, self);
+            self.revert_move(player, enemy, from, to, src_entry, opt_dest_entry);
+            
+            if now_in_check {
+                return match already_in_check {
+                    true => Err("Currently in check! Cannot move piece unless it stops check!"),
+                    false => Err("Move causes check!")
+                }
+            }
+            Ok(())
+        }
+
+        fn validate_and_convert_short_notation(&self, player: &Player, to: Position, piece_type: PieceTypes) -> BoardResult<Position> {
             let mut matches: u32 = 0;
             let mut from = Position {x: 0, y: 0};
             for piece in player.get_pieces() {
@@ -79,12 +103,12 @@ pub mod board {
                     
             match matches {
                 0 => Err("Cannot find matching piece to move to destination"),
-                1 => Ok(ParsedNotation::Full(from, to, piece_type)),
+                1 => Ok(from),
                 2.. => Err("Multiple possible moves - use full notation: [src:dest]")
             }
         }
 
-        pub fn check_full(&self, player: &Player, from: Position, to: Position, piece_type: PieceTypes) -> BoardResult<()> {
+        fn validate_full_notation(&self, player: &Player, from: Position, to: Position, piece_type: PieceTypes) -> BoardResult<()> {
             let Some(entry) = self.get_board_entry(from) else {
                 return Err("Selected field empty");
             };
@@ -101,26 +125,6 @@ pub mod board {
             piece.is_field_reachable(player, to, self)
         }
         
-        pub fn execute_or_revert(&mut self, player: &mut Player, enemy: &mut Player, from: Position, to: Position) -> BoardResult<()> {
-            let already_in_check = player.is_in_check();
-
-            let src_entry = self.get_board_entry(from).expect("Must contain piece");
-            let opt_dest_entry = self.get_board_entry(to);
-
-            self.execute_move(player, enemy, from, to);
-            if player.gets_checked_by(enemy, self) {
-                self.revert_move(player, enemy, from, to, src_entry, opt_dest_entry);
-
-                return match already_in_check {
-                    true => Err("Currently in check! Cannot move piece unless it stops check!"),
-                    
-                    false => Err("Move causes check!")
-                }
-            }
-
-            Ok(())
-        }
-
         fn execute_move(&mut self, player: &mut Player, enemy: &mut Player, from: Position, to: Position) {
             if let Some(dest_entry) = self.get_board_entry(to) {
                 enemy.take_piece(dest_entry.piece_index);

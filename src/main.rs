@@ -9,7 +9,7 @@ use std::env;
 
 use piece::piece::Color;
 use board::board::Board;
-use parser::notation_parser::{parse_action, Action, ParsedNotation};
+use parser::notation_parser::{parse_action, Action};
 use player::player::Player;
 
 fn read_input() -> io::Result<String> {
@@ -58,18 +58,9 @@ fn game_loop(players: &mut Vec<Player>, board: &mut Board) {
                 player.list_pieces();
                 continue;
             }
-            Action::Move(mut notation) => {
-                if let Err(message) = board.validate_move(player, &mut notation) {
+            Action::Move(notation) => {
+                if let Err(message) = board.validate_and_execute_move(player, enemy, notation) {
                     println!("Invalid move: {message}");
-                    continue;
-                }
-                
-                let ParsedNotation::Full(from, to, _) = notation else {
-                    panic!("Must be a full notation by now");
-                };
-
-                if let Err(message) = board.execute_or_revert(player, enemy, from, to) {
-                    println!("{message}");
                     continue;
                 }
             },
