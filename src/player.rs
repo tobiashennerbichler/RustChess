@@ -83,7 +83,7 @@ pub mod player {
                     continue;
                 }
 
-                if let Ok(_) = piece.is_possible_move(enemy, king.get_position(), board) {
+                if let Ok(_) = piece.is_field_reachable(enemy, king.get_position(), board) {
                     println!("This {piece:?} piece gives check to {king:?}");
                     return true;
                 }

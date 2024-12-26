@@ -140,18 +140,18 @@ pub mod piece {
         // and use is_legal_move functions to check all pieces for new_pos = king.pos
         // TODO: handle en passant, castling and promotion
         // TODO: implement checkmate and stalemate
-        pub fn is_possible_move(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
+        pub fn is_field_reachable(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
             match self.piece_type {
-                PieceTypes::Pawn => self.is_possible_move_pawn(player, new_pos, board),
-                PieceTypes::Knight => self.is_possible_move_knight(player, new_pos, board),
-                PieceTypes::Bishop => self.is_possible_move_bishop(player, new_pos, board),
-                PieceTypes::Rook => self.is_possible_move_rook(player, new_pos, board),
-                PieceTypes::Queen => self.is_possible_move_queen(player, new_pos, board),
-                PieceTypes::King => self.is_possible_move_king(player, new_pos, board)
+                PieceTypes::Pawn => self.is_field_reachable_pawn(player, new_pos, board),
+                PieceTypes::Knight => self.is_field_reachable_knight(player, new_pos, board),
+                PieceTypes::Bishop => self.is_field_reachable_bishop(player, new_pos, board),
+                PieceTypes::Rook => self.is_field_reachable_rook(player, new_pos, board),
+                PieceTypes::Queen => self.is_field_reachable_queen(player, new_pos, board),
+                PieceTypes::King => self.is_field_reachable_king(player, new_pos, board)
             }
         }
 
-        fn is_possible_move_pawn(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
+        fn is_field_reachable_pawn(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
             let mut distance = self.position.get_distance_to(new_pos);
             let mut start_pos = 1;
             if let Color::Black = self.color {
@@ -183,7 +183,7 @@ pub mod piece {
             }
         }
             
-        fn is_possible_move_knight(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
+        fn is_field_reachable_knight(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
             let distance = self.position.get_distance_to(new_pos);
 
             match distance {
@@ -195,7 +195,7 @@ pub mod piece {
             }
         }
 
-        fn is_possible_move_bishop(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
+        fn is_field_reachable_bishop(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
             let distance = self.position.get_distance_to(new_pos);
 
             match distance {
@@ -213,7 +213,7 @@ pub mod piece {
             }
         }
 
-        fn is_possible_move_rook(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
+        fn is_field_reachable_rook(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
             let distance = self.position.get_distance_to(new_pos);
 
             match distance {
@@ -235,7 +235,7 @@ pub mod piece {
             }
         }
 
-        fn is_possible_move_queen(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
+        fn is_field_reachable_queen(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
             let distance = self.position.get_distance_to(new_pos);
 
             match distance {
@@ -265,7 +265,7 @@ pub mod piece {
             }
         }
 
-        fn is_possible_move_king(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
+        fn is_field_reachable_king(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
             let distance = self.position.get_distance_to(new_pos);
 
             match distance {

@@ -1,7 +1,9 @@
 pub mod board {
-    use crate::piece::piece::{Position, Color, Piece, PieceTypes};
+    use crate::piece::piece::{Position, Color, PieceTypes};
     use crate::player::player::Player;
     use crate::parser::notation_parser::ParsedNotation;
+
+    type BoardResult<T> = Result<T, &'static str>;
 
     #[derive(Copy, Clone)]
     pub struct BoardEntry {
@@ -49,7 +51,7 @@ pub mod board {
             println!("");
         }
         
-        pub fn validate_move(&mut self, player: &Player, notation: &mut ParsedNotation) -> Result<(), &'static str> {
+        pub fn validate_move(&mut self, player: &Player, notation: &mut ParsedNotation) -> BoardResult<()> {
             match *notation {
                 ParsedNotation::Short(to, piece_type) => {
                     *notation = self.check_and_convert_short(player, to, piece_type)?;
@@ -61,15 +63,15 @@ pub mod board {
             }
         }
 
-        pub fn check_and_convert_short(&self, player: &Player, to: Position, piece_type: PieceTypes) -> Result<ParsedNotation, &'static str> {
+        pub fn check_and_convert_short(&self, player: &Player, to: Position, piece_type: PieceTypes) -> BoardResult<ParsedNotation> {
             let mut matches: u32 = 0;
             let mut from = Position {x: 0, y: 0};
             for piece in player.get_pieces() {
-                if piece.get_piece_type() != piece_type {
+                if piece.is_taken() || piece.get_piece_type() != piece_type {
                     continue;
                 }
 
-                if let Ok(_) = piece.is_possible_move(player, to, self) {
+                if let Ok(_) = piece.is_field_reachable(player, to, self) {
                     from = piece.get_position();
                     matches += 1;
                 }
@@ -82,7 +84,7 @@ pub mod board {
             }
         }
 
-        pub fn check_full(&self, player: &Player, to: Position, from: Position, piece_type: PieceTypes) -> Result<(), &'static str> {
+        pub fn check_full(&self, player: &Player, from: Position, to: Position, piece_type: PieceTypes) -> BoardResult<()> {
             let Some(entry) = self.get_board_entry(from) else {
                 return Err("Selected field empty");
             };
@@ -96,28 +98,22 @@ pub mod board {
                 return Err("Selected piece does not match piece at selected field");
             }
 
-            piece.is_possible_move(player, to, self)
+            piece.is_field_reachable(player, to, self)
         }
         
-        pub fn execute_or_revert(&mut self, player: &mut Player, enemy: &mut Player, from: Position, to: Position) -> Result<(), &'static str> {
-            let already_check = player.is_in_check();
+        pub fn execute_or_revert(&mut self, player: &mut Player, enemy: &mut Player, from: Position, to: Position) -> BoardResult<()> {
+            let already_in_check = player.is_in_check();
 
-            // Save board state
             let src_entry = self.get_board_entry(from).expect("Must contain piece");
             let opt_dest_entry = self.get_board_entry(to);
 
             self.execute_move(player, enemy, from, to);
             if player.gets_checked_by(enemy, self) {
-                if let Some(dest_entry) = opt_dest_entry {
-                    enemy.untake_piece(dest_entry.piece_index, to);
-                }
+                self.revert_move(player, enemy, from, to, src_entry, opt_dest_entry);
 
-                player.update_piece_position(src_entry.piece_index, from);
-                self.grid[to.x][to.y] = opt_dest_entry;
-                self.grid[from.x][from.y] = Some(src_entry);
-
-                return match already_check {
-                    true => Err("Currently in check! Cannot move other piece unless it stops check!"),
+                return match already_in_check {
+                    true => Err("Currently in check! Cannot move piece unless it stops check!"),
+                    
                     false => Err("Move causes check!")
                 }
             }
@@ -125,20 +121,35 @@ pub mod board {
             Ok(())
         }
 
-        pub fn execute_move(&mut self, player: &mut Player, enemy: &mut Player, from: Position, to: Position) {
+        fn execute_move(&mut self, player: &mut Player, enemy: &mut Player, from: Position, to: Position) {
             if let Some(dest_entry) = self.get_board_entry(to) {
                 enemy.take_piece(dest_entry.piece_index);
             }
             
             let src_entry = self.get_board_entry(from).expect("src field must contain piece");
             player.update_piece_position(src_entry.piece_index, to);
-            self.grid[from.x][from.y] = None;
-            self.grid[to.x][to.y] = Some(src_entry);
+            self.set_board_entry(from, None);
+            self.set_board_entry(to, Some(src_entry));
+        }
+        
+        fn revert_move(&mut self, player: &mut Player, enemy: &mut Player, from: Position, to: Position, src_entry: BoardEntry,
+            opt_dest_entry: Option<BoardEntry>) {
+            if let Some(dest_entry) = opt_dest_entry {
+                enemy.untake_piece(dest_entry.piece_index, to);
+            }
+            
+            player.update_piece_position(src_entry.piece_index, from);
+            self.set_board_entry(from, Some(src_entry));
+            self.set_board_entry(to, opt_dest_entry);
         }
         
         
         pub fn get_board_entry(&self, pos: Position) -> Option<BoardEntry> {
             self.grid[pos.x][pos.y]
+        }
+        
+        pub fn set_board_entry(&mut self, pos: Position, entry: Option<BoardEntry>) {
+            self.grid[pos.x][pos.y] = entry;
         }
     }
 }

@@ -5,6 +5,7 @@ mod player;
 
 use std::io;
 use std::io::Write;
+use std::env;
 
 use piece::piece::Color;
 use board::board::Board;
@@ -86,5 +87,16 @@ fn main() {
 
     let mut board = Board::new();
     board.init_grid(&players);
-    game_loop(&mut players, &mut board);
+
+    let args: Vec<String> = env::args().collect();
+    if args.len() != 2 {
+        println!("Usage: cargo run -- [headless/gui]");
+        return ()
+    }
+
+    match args[1].as_str() {
+        "headless" => game_loop(&mut players, &mut board),
+        "gui" => panic!("Not implemented yet"),
+        _ => println!("Usage: cargo run -- [headless/gui]")
+    }
 }
