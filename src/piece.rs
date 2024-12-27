@@ -28,7 +28,7 @@ pub mod piece {
         }
     }
     
-    #[derive(Debug, Copy, Clone)]
+    #[derive(Copy, Clone)]
     pub struct Position {
         pub x: usize,
         pub y: usize
@@ -51,6 +51,28 @@ pub mod piece {
             };
             self.x = (self.x as i32 + cmove.x) as usize;
             self.y = (self.y as i32 + cmove.y) as usize;
+        }
+    }
+
+    impl TryFrom<(i32, i32)> for Position {
+        type Error = &'static str;
+
+        fn try_from(value: (i32, i32)) -> Result<Self, Self::Error> {
+            if value.0 < 0 || value.0 > 7 {
+                Err("x out of bounds")
+            } else if value.1 < 0 || value.1 > 7 {
+                Err("y out of bounds")
+            } else {
+                Ok(Position { x: value.0 as usize, y: value.1 as usize})
+            }
+        }
+    }
+    
+    impl fmt::Debug for Position {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            let char_x: char = (self.x as u8 + b'a').try_into().expect("Must be valid ascii");
+            let y = self.y + 1;
+            write!(f, "{char_x}{y}")
         }
     }
     
@@ -136,6 +158,10 @@ pub mod piece {
         // TODO: handle en passant, castling and promotion
         // TODO: implement checkmate and stalemate
         pub fn is_field_reachable(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
+            if new_pos.x > 7 || new_pos.y > 7 {
+                panic!("Out-of-bounds access");
+            }
+
             match self.piece_type {
                 PieceTypes::Pawn => self.is_field_reachable_pawn(player, new_pos, board),
                 PieceTypes::Knight => self.is_field_reachable_knight(player, new_pos, board),
@@ -231,32 +257,12 @@ pub mod piece {
         }
 
         fn is_field_reachable_queen(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
-            let required_move = self.position.get_move_to(new_pos);
-
-            match required_move {
-                ChessMove {x: 0, y: 0} => Err("Invalid Queen move"),
-                ChessMove {x, y: 0} => {
-                    if self.is_path_obstructed(board, x.abs() - 1, ChessMove {x: x.signum(), y: 0}) {
-                        return Err("Piece in the way");
-                    }
-
-                    self.check_takeable(board, player.get_color(), new_pos)
-                },
-                ChessMove {x: 0, y} => {
-                    if self.is_path_obstructed(board, y.abs() - 1, ChessMove {x: 0, y: y.signum()}) {
-                        return Err("Piece in the way");
-                    }
-
-                    self.check_takeable(board, player.get_color(), new_pos)
-                },
-                ChessMove {x, y} if x == y || x == -y => {
-                    if self.is_path_obstructed(board, x.abs() - 1, required_move.signum()) {
-                        return Err("Piece in the way");
-                    }
-
-                    self.check_takeable(board, player.get_color(), new_pos)
-                },
-                _ => Err("Invalid Queen move")
+            let reachable_rook = self.is_field_reachable_rook(player, new_pos, board);
+            let reachable_bishop = self.is_field_reachable_bishop(player, new_pos, board);
+            
+            match (reachable_rook, reachable_bishop) {
+                (Err(_), Err(_)) => Err("Invalid Queen move"),
+                _ => Ok(())
             }
         }
 
@@ -295,11 +301,11 @@ pub mod piece {
 
         pub fn get_reachable_positions(&self, player: &Player, board: &Board) -> Vec<Position> {
             match self.piece_type {
-                PieceTypes::Pawn => Vec::new(),
+                PieceTypes::Pawn => self.get_reachable_positions_pawn(player, board),
                 PieceTypes::Knight => Vec::new(),
-                PieceTypes::Bishop => Vec::new(),
+                PieceTypes::Bishop => self.get_reachable_positions_bishop(player, board),
                 PieceTypes::Rook => self.get_reachable_positions_rook(player, board),
-                PieceTypes::Queen => Vec::new(),
+                PieceTypes::Queen => self.get_reachable_positions_queen(player, board),
                 PieceTypes::King => Vec::new()
             }
         }
@@ -307,12 +313,55 @@ pub mod piece {
         fn get_reachable_positions_pawn(&self, player: &Player, board: &Board) -> Vec<Position> {
             let mut moves = Vec::new();
 
-            let x = self.position.x;
+            let x = self.position.x as i32;
             for step in 1..=2 {
-                let curr_pos = match self.color {
-                    Color::White => Position {x, y: self.position.y + step},
-                    Color::Black => Position {x, y: self.position.y - step}
+                let add = match self.color {
+                    Color::White => step,
+                    Color::Black => -step
                 };
+                
+                let y = self.position.y as i32 + add;
+                let Ok(new_pos) = Position::try_from((x, y)) else {
+                    continue;
+                };
+                if let Ok(_) = self.is_field_reachable_pawn(player, new_pos, board) {
+                    moves.push(new_pos);
+                }
+            }
+            
+            let y = self.position.y as i32 + 1;
+            for add in [-1, 1] {
+                let x = self.position.x as i32 + add;
+                let Ok(new_pos) = Position::try_from((x, y)) else {
+                    continue;
+                };
+                if let Ok(_) = self.is_field_reachable_pawn(player, new_pos, board) {
+                    moves.push(new_pos);
+                }
+            }
+
+            moves
+        }
+        
+        fn get_reachable_positions_bishop(&self, player: &Player, board: &Board) -> Vec<Position> {
+            let mut moves = Vec::new();
+            
+            for add_x in [-1, 1] {
+                for add_y in [-1, 1] {
+                    let mut x = self.position.x as i32;
+                    let mut y = self.position.y as i32;
+                    for _ in 0..7 {
+                        x += add_x;
+                        y += add_y;
+                        
+                        let Ok(new_pos) = Position::try_from((x, y)) else {
+                            break;
+                        };
+                        if let Ok(_) = self.is_field_reachable_bishop(player, new_pos, board) {
+                            moves.push(new_pos);
+                        }
+                    }
+                }
             }
 
             moves
@@ -343,7 +392,15 @@ pub mod piece {
             
             moves
         }
-
+        
+        fn get_reachable_positions_queen(&self, player: &Player, board: &Board) -> Vec<Position> {
+            let mut moves = Vec::new();
+            
+            moves.append(&mut self.get_reachable_positions_rook(player, board));
+            moves.append(&mut self.get_reachable_positions_bishop(player, board));
+            
+            moves
+        }
         
         pub fn get_position(&self) -> Position {
             self.position
