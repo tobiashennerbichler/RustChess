@@ -55,7 +55,7 @@ fn game_loop(players: &mut Vec<Player>, board: &mut Board) {
 
         match action {
             Action::List => {
-                player.list_pieces();
+                player.list_pieces(board);
                 continue;
             }
             Action::Move(notation) => {

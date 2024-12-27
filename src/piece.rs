@@ -35,41 +35,41 @@ pub mod piece {
     }
 
     impl Position {
-        fn get_distance_to(&self, pos: Position) -> Distance {
-            Distance {
+        fn get_move_to(&self, pos: Position) -> ChessMove {
+            ChessMove {
                 x: pos.x as i32 - self.x as i32,
                 y: pos.y as i32 - self.y as i32
             }
         }
         
-        fn add_distance(&mut self, distance: Distance) {
+        fn add_move(&mut self, cmove: ChessMove) {
             let x: i32 = self.x.try_into().unwrap();
             let y: i32 = self.y.try_into().unwrap();
 
-            let (0..=7, 0..=7) = (x + distance.x, y + distance.y) else {
+            let (0..=7, 0..=7) = (x + cmove.x, y + cmove.y) else {
                 panic!("Should not be possible to go out of bounds - check parser!");
             };
-            self.x = (self.x as i32 + distance.x) as usize;
-            self.y = (self.y as i32 + distance.y) as usize;
+            self.x = (self.x as i32 + cmove.x) as usize;
+            self.y = (self.y as i32 + cmove.y) as usize;
         }
     }
     
     #[derive(Debug, Copy, Clone)]
-    struct Distance {
+    struct ChessMove {
         x: i32,
         y: i32
     }
 
-    impl AddAssign for Distance {
+    impl AddAssign for ChessMove {
         fn add_assign(&mut self, other: Self) {
             self.x += other.x;
             self.y += other.y;
         }
     }
 
-    impl Distance {
-        fn signum(&self) -> Distance {
-            Distance {x: self.x.signum(), y: self.y.signum()}
+    impl ChessMove {
+        fn signum(&self) -> ChessMove {
+            ChessMove {x: self.x.signum(), y: self.y.signum()}
         }
     }
     
@@ -147,17 +147,17 @@ pub mod piece {
         }
 
         fn is_field_reachable_pawn(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
-            let mut distance = self.position.get_distance_to(new_pos);
+            let mut required_move = self.position.get_move_to(new_pos);
             let mut start_pos = 1;
             if let Color::Black = self.color {
-                distance.y *= -1;
+                required_move.y *= -1;
                 start_pos = 6;
             }
             
-            match distance {
+            match required_move {
                 // Advance
-                Distance {x: 0, y: 1..=2} => {
-                    if distance.y == 2 && self.position.y != start_pos {
+                ChessMove {x: 0, y: 1..=2} => {
+                    if required_move.y == 2 && self.position.y != start_pos {
                         return Err("Pawn cannot move twice if it has moved before");
                     }
                     
@@ -167,7 +167,7 @@ pub mod piece {
                     }
                 },
                 // Take
-                Distance {x, y: 1} if x.abs() == 1 => {
+                ChessMove {x, y: 1} if x.abs() == 1 => {
                     match board.get_board_entry(new_pos) {
                         Some(entry) if entry.player_color == player.get_color() => Err("Cannot take own piece"),
                         Some(_) => Ok(()),
@@ -179,10 +179,10 @@ pub mod piece {
         }
             
         fn is_field_reachable_knight(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
-            let distance = self.position.get_distance_to(new_pos);
+            let required_move = self.position.get_move_to(new_pos);
 
-            match distance {
-                Distance {x, y} if (x.abs() == 1 && y.abs() == 2) ||
+            match required_move {
+                ChessMove {x, y} if (x.abs() == 1 && y.abs() == 2) ||
                                              (x.abs() == 2 && y.abs() == 1) => {
                     self.check_takeable(board, player.get_color(), new_pos)
                 },
@@ -191,14 +191,14 @@ pub mod piece {
         }
 
         fn is_field_reachable_bishop(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
-            let distance = self.position.get_distance_to(new_pos);
+            let required_move = self.position.get_move_to(new_pos);
 
-            match distance {
-                Distance {x: 0, y: 0} => {
+            match required_move {
+                ChessMove {x: 0, y: 0} => {
                     return Err("Invalid Bishop move");
                 }
-                Distance {x, y} if x == y || x == -y => {
-                    if self.is_path_obstructed(board, x.abs() - 1, distance.signum()) {
+                ChessMove {x, y} if x == y || x == -y => {
+                    if self.is_path_obstructed(board, x.abs() - 1, required_move.signum()) {
                         return Err("Piece in the way");
                     }
                  
@@ -209,18 +209,18 @@ pub mod piece {
         }
 
         fn is_field_reachable_rook(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
-            let distance = self.position.get_distance_to(new_pos);
+            let required_move = self.position.get_move_to(new_pos);
 
-            match distance {
-                Distance {x, y: 0} if x != 0 => {
-                    if self.is_path_obstructed(board, x.abs() - 1, Distance {x: x.signum(), y: 0}) {
+            match required_move {
+                ChessMove {x, y: 0} if x != 0 => {
+                    if self.is_path_obstructed(board, x.abs() - 1, ChessMove {x: x.signum(), y: 0}) {
                         return Err("Piece in the way");
                     }
 
                     self.check_takeable(board, player.get_color(), new_pos)
                 },
-                Distance {x: 0, y} if y != 0 => {
-                    if self.is_path_obstructed(board, y.abs() - 1, Distance {x: 0, y: y.signum()}) {
+                ChessMove {x: 0, y} if y != 0 => {
+                    if self.is_path_obstructed(board, y.abs() - 1, ChessMove {x: 0, y: y.signum()}) {
                         return Err("Piece in the way");
                     }
 
@@ -231,26 +231,26 @@ pub mod piece {
         }
 
         fn is_field_reachable_queen(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
-            let distance = self.position.get_distance_to(new_pos);
+            let required_move = self.position.get_move_to(new_pos);
 
-            match distance {
-                Distance {x: 0, y: 0} => Err("Invalid Queen move"),
-                Distance {x, y: 0} => {
-                    if self.is_path_obstructed(board, x.abs() - 1, Distance {x: x.signum(), y: 0}) {
+            match required_move {
+                ChessMove {x: 0, y: 0} => Err("Invalid Queen move"),
+                ChessMove {x, y: 0} => {
+                    if self.is_path_obstructed(board, x.abs() - 1, ChessMove {x: x.signum(), y: 0}) {
                         return Err("Piece in the way");
                     }
 
                     self.check_takeable(board, player.get_color(), new_pos)
                 },
-                Distance {x: 0, y} => {
-                    if self.is_path_obstructed(board, y.abs() - 1, Distance {x: 0, y: y.signum()}) {
+                ChessMove {x: 0, y} => {
+                    if self.is_path_obstructed(board, y.abs() - 1, ChessMove {x: 0, y: y.signum()}) {
                         return Err("Piece in the way");
                     }
 
                     self.check_takeable(board, player.get_color(), new_pos)
                 },
-                Distance {x, y} if x == y || x == -y => {
-                    if self.is_path_obstructed(board, x.abs() - 1, distance.signum()) {
+                ChessMove {x, y} if x == y || x == -y => {
+                    if self.is_path_obstructed(board, x.abs() - 1, required_move.signum()) {
                         return Err("Piece in the way");
                     }
 
@@ -261,21 +261,21 @@ pub mod piece {
         }
 
         fn is_field_reachable_king(&self, player: &Player, new_pos: Position, board: &Board) -> Result<(), &'static str> {
-            let distance = self.position.get_distance_to(new_pos);
+            let required_move = self.position.get_move_to(new_pos);
 
-            match distance {
-                Distance {x: 0, y: 0} => Err("Invalid King move"),
-                Distance {x, y} if x.abs() <= 1 && y.abs() <= 1 => {
+            match required_move {
+                ChessMove {x: 0, y: 0} => Err("Invalid King move"),
+                ChessMove {x, y} if x.abs() <= 1 && y.abs() <= 1 => {
                     self.check_takeable(board, player.get_color(), new_pos)
                 },
                 _ => Err("Invalid King move")
             }
         }
-
-        fn is_path_obstructed(&self, board: &Board, num_fields: i32, add: Distance) -> bool {
+        
+        fn is_path_obstructed(&self, board: &Board, num_fields: i32, add: ChessMove) -> bool {
             let mut temp_pos = self.position;
             for _ in 0..num_fields {
-                temp_pos.add_distance(add);
+                temp_pos.add_move(add);
 
                 if let Some(_) = board.get_board_entry(temp_pos) {
                     return true;
@@ -292,6 +292,58 @@ pub mod piece {
                 None => Ok(())
             }
         }
+
+        pub fn get_reachable_positions(&self, player: &Player, board: &Board) -> Vec<Position> {
+            match self.piece_type {
+                PieceTypes::Pawn => Vec::new(),
+                PieceTypes::Knight => Vec::new(),
+                PieceTypes::Bishop => Vec::new(),
+                PieceTypes::Rook => self.get_reachable_positions_rook(player, board),
+                PieceTypes::Queen => Vec::new(),
+                PieceTypes::King => Vec::new()
+            }
+        }
+        
+        fn get_reachable_positions_pawn(&self, player: &Player, board: &Board) -> Vec<Position> {
+            let mut moves = Vec::new();
+
+            let x = self.position.x;
+            for step in 1..=2 {
+                let curr_pos = match self.color {
+                    Color::White => Position {x, y: self.position.y + step},
+                    Color::Black => Position {x, y: self.position.y - step}
+                };
+            }
+
+            moves
+        }
+
+        fn get_reachable_positions_rook(&self, player: &Player, board: &Board) -> Vec<Position> {
+            let mut moves = Vec::new();
+
+            let y = self.position.y;
+            for x in 0..=7 {
+                let curr_pos = Position {x, y};
+                if let Err(_) = self.is_field_reachable_rook(player, curr_pos, board) {
+                    continue;
+                }
+
+                moves.push(curr_pos);
+            }
+            
+            let x = self.position.x;
+            for y in 0..=7 {
+                let curr_pos = Position {x, y};
+                if let Err(_) = self.is_field_reachable_rook(player, curr_pos, board) {
+                    continue;
+                }
+
+                moves.push(curr_pos);
+            }
+            
+            moves
+        }
+
         
         pub fn get_position(&self) -> Position {
             self.position

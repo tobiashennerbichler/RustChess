@@ -147,7 +147,6 @@ pub mod board {
             self.set_board_entry(to, opt_dest_entry);
         }
         
-        
         pub fn get_board_entry(&self, pos: Position) -> Option<BoardEntry> {
             self.grid[pos.x][pos.y]
         }

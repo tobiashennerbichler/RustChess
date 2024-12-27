@@ -68,9 +68,13 @@ pub mod player {
             self.pieces[piece_index].update_position(new_pos);
         }
 
-        pub fn list_pieces(&self) {
+        pub fn list_pieces(&self, board: &Board) {
             for &piece in self.pieces.iter() {
-                println!("{piece:?}");
+                if piece.is_taken() {
+                    continue;
+                }
+
+                println!("{piece:?} has possible moves: {:?}", piece.get_reachable_positions(self, board));
             }
         }
         
@@ -93,6 +97,26 @@ pub mod player {
 
         pub fn update_check(&mut self, enemy: &Player, board: &Board) {
             self.in_check = self.gets_checked_by(enemy, board);
+        }
+        
+        pub fn is_game_over(&mut self, enemy: &Player, board: &Board) -> bool {
+            self.update_check(enemy, board);
+
+            // TODO: we are in check. lets see if it is checkmate
+            // 1: get all possible king moves that do not lead to check, if none; continue
+            // 2: get all possible moves of other pieces that do not lead to check, if none --> checkmate
+            if self.in_check {
+
+            } else {
+            // TODO: we are not in check. lets see if it is stalemate
+            // 1: get all possible moves that do not lead to check
+            // 2: if there are none --> stalemate
+
+            }
+            
+
+            
+            true 
         }
 
         pub fn get_color(&self) -> Color {
