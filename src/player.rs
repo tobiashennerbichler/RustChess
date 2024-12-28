@@ -80,7 +80,7 @@ pub mod player {
                     continue;
                 }
 
-                println!("{piece:?} has possible moves: {:?}", piece.get_reachable_positions(self, enemy, board));
+                println!("{piece:?} has possible moves: {:?}", piece.get_legal_positions(self, enemy, board));
             }
         }
         

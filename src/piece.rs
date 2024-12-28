@@ -283,7 +283,7 @@ pub mod piece {
             }
         }
 
-        pub fn get_reachable_positions(&self, player: &mut Player, enemy: &mut Player, board: &mut Board) -> Vec<Position> {
+        pub fn get_legal_positions(&self, player: &mut Player, enemy: &mut Player, board: &mut Board) -> Vec<Position> {
             let mut positions = match self.piece_type {
                 PieceTypes::Pawn => self.get_reachable_positions_pawn(player, board),
                 PieceTypes::Knight => self.get_reachable_positions_knight(player, board),
