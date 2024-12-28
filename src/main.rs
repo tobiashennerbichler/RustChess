@@ -2,6 +2,7 @@ mod piece;
 mod board;
 mod parser;
 mod player;
+mod tests;
 
 use std::io;
 use std::io::Write;
@@ -9,7 +10,7 @@ use std::env;
 
 use piece::piece::Color;
 use board::board::Board;
-use parser::notation_parser::{parse_action, Action};
+use parser::notation_parser::{parse_action, parse_fen, Action, ParsedFen, ParsingErr};
 use player::player::Player;
 
 fn read_input() -> io::Result<String> {
@@ -29,8 +30,8 @@ fn get_mut_player_enemy(players: &mut Vec<Player>, player_index: usize) -> (&mut
     }
 }
 
-fn game_loop(players: &mut Vec<Player>, board: &mut Board) {
-    let mut player_index = 0;
+fn game_loop(beginning_player: usize, players: &mut Vec<Player>, board: &mut Board) {
+    let mut player_index = beginning_player;
     let game_over = false;
 
     while !game_over {
@@ -55,7 +56,7 @@ fn game_loop(players: &mut Vec<Player>, board: &mut Board) {
 
         match action {
             Action::List => {
-                player.list_pieces(board);
+                player.list_pieces(enemy, board);
                 continue;
             }
             Action::Move(notation) => {
@@ -71,23 +72,39 @@ fn game_loop(players: &mut Vec<Player>, board: &mut Board) {
     }
 }
 
+fn load_state_from_fen(fen: &str, players: &mut Vec<Player>, board: &mut Board) -> Result<usize, ParsingErr> {
+    let ParsedFen(player_pieces, beginning_player) = parse_fen(fen)?;
+
+    players.push(Player::new_from(player_pieces[0].to_owned(), Color::White));
+    players.push(Player::new_from(player_pieces[1].to_owned(), Color::Black));
+    board.init_grid(players);
+
+    Ok(beginning_player)
+}
+
 fn main() {
-    let mut players: Vec<Player> = Vec::new();
-    players.push(Player::new(Color::White));
-    players.push(Player::new(Color::Black));
-
-    let mut board = Board::new();
-    board.init_grid(&players);
-
     let args: Vec<String> = env::args().collect();
-    if args.len() != 2 {
-        println!("Usage: cargo run -- [headless/gui]");
-        return ()
+    let mut players: Vec<Player> = Vec::new();
+    let mut board = Board::new();
+    let mut beginning_player = 0;
+
+    if args.len() == 1 {
+        players.push(Player::new(Color::White));
+        players.push(Player::new(Color::Black));
+
+        board.init_grid(&players);
+    } else if args.len() == 2 {
+        beginning_player = match load_state_from_fen(&args[1], &mut players, &mut board) {
+            Ok(beginning_player) => beginning_player,
+            Err(err) => {
+                println!("{err}");
+                return ();
+            }
+        };
+    } else {
+        println!("Invalid number of arguments");
+        return ();        
     }
 
-    match args[1].as_str() {
-        "headless" => game_loop(&mut players, &mut board),
-        "gui" => panic!("Not implemented yet"),
-        _ => println!("Usage: cargo run -- [headless/gui]")
-    }
+    game_loop(beginning_player, &mut players, &mut board);
 }

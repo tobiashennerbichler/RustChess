@@ -1,7 +1,7 @@
 pub mod board {
-    use crate::piece::piece::{Position, Color, PieceTypes};
+    use crate::piece::piece::{Position, Color, Piece, PieceTypes};
     use crate::player::player::Player;
-    use crate::parser::notation_parser::ParsedNotation;
+    use crate::parser::notation_parser::{ParsedNotation};
 
     type BoardResult<T> = Result<T, &'static str>;
 
@@ -63,12 +63,12 @@ pub mod board {
                 }
             };
             
-            self.is_legal_move(player, enemy, from, to)?;
+            self.does_move_cause_check(player, enemy, from, to)?;
             self.execute_move(player, enemy, from, to);
             Ok(())
         }
 
-        fn is_legal_move(&mut self, player: &mut Player, enemy: &mut Player, from: Position, to: Position) -> BoardResult<()> {
+        pub fn does_move_cause_check(&mut self, player: &mut Player, enemy: &mut Player, from: Position, to: Position) -> BoardResult<()> {
             let already_in_check = player.is_in_check();
 
             let src_entry = self.get_board_entry(from).expect("Must contain piece");
@@ -146,7 +146,7 @@ pub mod board {
             self.set_board_entry(from, Some(src_entry));
             self.set_board_entry(to, opt_dest_entry);
         }
-        
+
         pub fn get_board_entry(&self, pos: Position) -> Option<BoardEntry> {
             self.grid[pos.x][pos.y]
         }

@@ -39,6 +39,10 @@ pub mod player {
             let pieces = init_pieces(color);
             Player { pieces, color, in_check: false }
         }
+
+        pub fn new_from(pieces: Vec<Piece>, color: Color) -> Self {
+            Player { pieces, color, in_check: false }
+        }
         
         pub fn get_pieces(&self) -> &Vec<Piece> {
             &self.pieces
@@ -68,18 +72,20 @@ pub mod player {
             self.pieces[piece_index].update_position(new_pos);
         }
 
-        pub fn list_pieces(&self, board: &Board) {
-            for &piece in self.pieces.iter() {
+        pub fn list_pieces(&mut self, enemy: &mut Player, board: &mut Board) {
+            let len = self.pieces.len();
+            for indx in 0..len {
+                let piece = self.pieces[indx];
                 if piece.is_taken() {
                     continue;
                 }
 
-                println!("{piece:?} has possible moves: {:?}", piece.get_reachable_positions(self, board));
+                println!("{piece:?} has possible moves: {:?}", piece.get_reachable_positions(self, enemy, board));
             }
         }
         
         pub fn gets_checked_by(&self, enemy: &Player, board: &Board) -> bool {
-            let king: &Piece = self.pieces.iter().filter(|&&p| p.get_piece_type() == PieceTypes::King)
+            let king: &Piece = self.pieces.iter().filter(|&p| p.get_piece_type() == PieceTypes::King)
                                                  .collect::<Vec<&Piece>>()[0];
             
             for piece in enemy.get_pieces() {
@@ -88,10 +94,11 @@ pub mod player {
                 }
 
                 if let Ok(_) = piece.is_field_reachable(enemy, king.get_position(), board) {
-                    println!("This {piece:?} piece gives check to {king:?}");
+                    println!("Piece {piece:?} gives check to {king:?}");
                     return true;
                 }
             }
+
             false
         }
 
