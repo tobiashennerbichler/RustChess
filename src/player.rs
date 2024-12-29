@@ -83,6 +83,21 @@ pub mod player {
                 println!("{piece:?} has possible moves: {:?}", piece.get_legal_positions(self, enemy, board));
             }
         }
+
+        pub fn get_all_legal_positions(&mut self, enemy: &mut Player, board: &mut Board) -> Vec<Vec<Position>> {
+            let mut all_positions = Vec::new();
+            let len = self.pieces.len();
+            for indx in 0..len {
+                let piece = self.pieces[indx];
+                if piece.is_taken() {
+                    continue;
+                }
+                
+                all_positions.push(piece.get_legal_positions(self, enemy, board));
+            }
+
+            all_positions
+        }
         
         pub fn gets_checked_by(&self, enemy: &Player, board: &Board) -> bool {
             let king: &Piece = self.pieces.iter().filter(|&p| p.get_piece_type() == PieceTypes::King)
@@ -105,7 +120,7 @@ pub mod player {
         pub fn update_check(&mut self, enemy: &Player, board: &Board) {
             self.in_check = self.gets_checked_by(enemy, board);
         }
-        
+
         pub fn is_game_over(&mut self, enemy: &Player, board: &Board) -> bool {
             self.update_check(enemy, board);
 

@@ -2,7 +2,7 @@ pub mod notation_parser {
     use std::fmt;
     use crate::piece::piece::{Position, Piece, PieceTypes, Color};
 
-    #[derive(Copy, Clone)]
+    #[derive(Debug, Copy, Clone)]
     pub struct ParsingErr(&'static str);
     
     impl fmt::Display for ParsingErr {

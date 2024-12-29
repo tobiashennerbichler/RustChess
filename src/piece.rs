@@ -28,7 +28,7 @@ pub mod piece {
         }
     }
     
-    #[derive(Copy, Clone)]
+    #[derive(Copy, Clone, PartialEq)]
     pub struct Position {
         pub x: usize,
         pub y: usize
@@ -63,6 +63,31 @@ pub mod piece {
             write!(f, "{char_x}{y}")
         }
     }
+
+    impl TryFrom<&str> for Position {
+        type Error = &'static str;
+
+        fn try_from(value: &str) -> Result<Self, Self::Error> {
+            let trimmed = value.trim();
+            if !trimmed.is_ascii() {
+                return Err("Not a valid ascii string");
+            }
+
+            if trimmed.len() != 2 {
+                return Err("String should contain two characters");
+            }
+            
+            let bytes = value.as_bytes();
+            match bytes {
+                [b'a'..=b'h', b'1'..=b'8'] => {
+                    let x = (bytes[0] - b'a') as usize;
+                    let y = (bytes[1] - b'1') as usize;
+                    Ok(Position {x, y})
+                }
+                _ => Err("Not a valid position string")
+            }
+        }
+    }
     
     #[derive(Debug, Copy, Clone)]
     struct ChessMove {
@@ -82,7 +107,7 @@ pub mod piece {
             ChessMove {x: self.x.signum(), y: self.y.signum()}
         }
     }
-    
+
     #[derive(Copy, Clone)]
     pub struct Piece {
         color: Color,
@@ -167,8 +192,15 @@ pub mod piece {
             match required_move {
                 // Advance
                 ChessMove {x: 0, y: 1..=2} => {
-                    if required_move.y == 2 && self.position.y != start_pos {
-                        return Err("Pawn cannot move twice if it has moved before");
+                    if required_move.y == 2 {
+                        if self.position.y != start_pos {
+                            return Err("Pawn cannot move twice if it has moved before");
+                        }
+                        
+                        let direction = if self.color == Color::White { 1 } else { -1 };
+                        if self.is_path_obstructed(board, required_move.y - 1, ChessMove {x: 0, y: direction}) {
+                            return Err("Piece in the way");
+                        }
                     }
                     
                     match board.get_board_entry(new_pos) {
