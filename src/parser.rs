@@ -23,7 +23,7 @@ pub mod notation_parser {
         Full(Position, Position, PieceTypes)
     }
     
-    pub struct ParsedFen(pub [Vec<Piece>; 2], pub usize);
+    pub struct ParsedFen(pub [Vec<Piece>; 2], pub Color);
     
     pub fn parse_action(s: &str) -> Result<Action, ParsingErr> {
         let trimmed = s.trim();
@@ -130,10 +130,9 @@ pub mod notation_parser {
             return Err(ParsingErr("Incorrect number of kings"));
         }
         
-        let beginning_player = match remaining[1] {
-            "w" => 0,
-            "b" => 1,
-            _ => return Err(ParsingErr("Incorrect beginning player"))
+        let beginning_player = match Color::try_from(remaining[1]) {
+            Ok(beginning_player) => beginning_player,
+            Err(_) => return Err(ParsingErr("Incorrect beginning player"))
         };
             
         Ok(ParsedFen(pieces, beginning_player))

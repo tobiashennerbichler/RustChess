@@ -43,7 +43,7 @@ pub mod player {
         pub fn new_from(pieces: Vec<Piece>, color: Color) -> Self {
             Player { pieces, color, in_check: false }
         }
-        
+
         pub fn get_pieces(&self) -> &Vec<Piece> {
             &self.pieces
         }
@@ -72,33 +72,6 @@ pub mod player {
             self.pieces[piece_index].update_position(new_pos);
         }
 
-        pub fn list_pieces(&mut self, enemy: &mut Player, board: &mut Board) {
-            let len = self.pieces.len();
-            for indx in 0..len {
-                let piece = self.pieces[indx];
-                if piece.is_taken() {
-                    continue;
-                }
-
-                println!("{piece:?} has possible moves: {:?}", piece.get_legal_positions(self, enemy, board));
-            }
-        }
-
-        pub fn get_all_legal_positions(&mut self, enemy: &mut Player, board: &mut Board) -> Vec<Vec<Position>> {
-            let mut all_positions = Vec::new();
-            let len = self.pieces.len();
-            for indx in 0..len {
-                let piece = self.pieces[indx];
-                if piece.is_taken() {
-                    continue;
-                }
-                
-                all_positions.push(piece.get_legal_positions(self, enemy, board));
-            }
-
-            all_positions
-        }
-        
         pub fn gets_checked_by(&self, enemy: &Player, board: &Board) -> bool {
             let king: &Piece = self.pieces.iter().filter(|&p| p.get_piece_type() == PieceTypes::King)
                                                  .collect::<Vec<&Piece>>()[0];
@@ -108,8 +81,7 @@ pub mod player {
                     continue;
                 }
 
-                if let Ok(_) = piece.is_field_reachable(enemy, king.get_position(), board) {
-                    println!("Piece {piece:?} gives check to {king:?}");
+                if let Ok(_) = piece.is_field_reachable(king.get_position(), board) {
                     return true;
                 }
             }
@@ -119,26 +91,6 @@ pub mod player {
 
         pub fn update_check(&mut self, enemy: &Player, board: &Board) {
             self.in_check = self.gets_checked_by(enemy, board);
-        }
-
-        pub fn is_game_over(&mut self, enemy: &Player, board: &Board) -> bool {
-            self.update_check(enemy, board);
-
-            // TODO: we are in check. lets see if it is checkmate
-            // 1: get all possible king moves that do not lead to check, if none; continue
-            // 2: get all possible moves of other pieces that do not lead to check, if none --> checkmate
-            if self.in_check {
-
-            } else {
-            // TODO: we are not in check. lets see if it is stalemate
-            // 1: get all possible moves that do not lead to check
-            // 2: if there are none --> stalemate
-
-            }
-            
-
-            
-            true 
         }
 
         pub fn get_color(&self) -> Color {
