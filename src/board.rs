@@ -49,10 +49,10 @@ pub mod board {
                 let character = b'a' + x;
                 print!("{} ", character as char);
             }
+            println!("");
 
-            match players[0].is_in_check() {
-                true => println!("Check!"),
-                false => println!("")
+            if players[0].is_in_check() {
+                println!("Check!");
             }
         }
         

@@ -280,7 +280,6 @@ pub mod game {
             player.update_check(enemy, &self.board);
             let in_check = player.is_in_check();
             let legal_positions: Vec<Position> = self.get_all_current_legal_positions().into_iter().flatten().collect();
-            println!("update_game_state legal positions: {legal_positions:?}");
 
             if legal_positions.len() == 0 {
                 match in_check {
